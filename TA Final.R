@@ -6,7 +6,7 @@ library(affy)
 library(Biobase)
 library(dplyr)
 library(EnhancedVolcano)
-library(ggVennDiagram)
+library(VennDiagram)
 library(R.utils)
 
 ##MICROARRAY DATA
@@ -34,7 +34,7 @@ write.csv(mentah_filt,
           row.names = TRUE)
 
 #melihat data secara keseluruhan melalui visualisasi
-sampleNames(rawData_GSE214051) <- sub("_.*", "", sampleNames(rawData_GSE214051)) # menyederhanakan nama kolom
+sampleNames(rawData) <- sub("_.*", "", sampleNames(rawData)) # menyederhanakan nama kolom
 boxplot(mentah_filt,
         col = "skyblue",
         border = "gray40",
@@ -73,10 +73,18 @@ fvarLabels(gset) <- make.names(fvarLabels(gset))
 
 #melihat data secara keseluruhan
 dim(exprs(gset))
+#mengeluarkan gen control
+# cek jumlah gen control -> ada 64
+sum(grepl("^AFFX", rownames(exprs(gset))))
+
+# hapus gen control
+gset <- gset[!grepl("^AFFX", rownames(exprs(gset))), ]##ekspor ke csv
+dim(exprs(gset)) #yang awalnya 22690 jadi 22626
+
 #ekspor ke csv
-#write.csv(exprs(gset), 
-#          file = "/Users/putrianadwiagustin/Library/CloudStorage/OneDrive-UniversitasIslamIndonesia/Kuliah/Bismillah Tugas Akhir/Data/prepos_GSE214051.csv",
-#          row.names = TRUE)
+write.csv(exprs(gset), 
+          file = "/Users/putrianadwiagustin/Library/CloudStorage/OneDrive-UniversitasIslamIndonesia/Kuliah/Bismillah Tugas Akhir/Data/prepos_GSE214051.csv",
+          row.names = TRUE)
 
 pData(gset) #melihat info sampel
 fData(gset) #melihat info gene/probe
@@ -151,6 +159,11 @@ res_SPlong24$regulation[
 
 table(res_SPlong24$regulation)
 
+
+lamp <- data.frame(res_SPlong48$Gene.Symbol,res_SPlong48$logFC,
+                   res_SPlong48$adj.P.Val, res_SPlong48$regulation)
+
+deg_lamp <- lamp[lamp$res_SPlong48.regulation %in% c("Up","Down"), ]
 #Visualisasi
 keyvals_SPlong1 <- ifelse(
   res_SPlong24$regulation == "Up", "red",
@@ -230,13 +243,21 @@ intersect_SP <- intersect(int_24, int_48)
 length(intersect_SP)
 
 #Visualisasi diagram venn
-venn_list <- list(
-  "SP 24 jam" = int_24,
-  "SP 48 jam" = int_48
+venn.plot <- venn.diagram(
+  x = list(
+    "24–48 jam" = int_24,
+    "48–72 jam" = int_48
+  ),
+  filename = NULL,
+  fill = c("lightblue", "steelblue"),
+  alpha = 0.6,
+  cex = 1.5,
+  cat.cex = 1.5,
+  cat.pos = c(-20, 20),   # posisi label biar ga tabrakan
+  cat.dist = c(0.05, 0.05),
+  ext.text = FALSE
 )
-
-ggVennDiagram(venn_list) +
-  scale_fill_gradient(low = "white", high = "steelblue")
+grid::grid.draw(venn.plot)
 
 #Prepare untuk interpretasi biologis
 gen <- annot[intersect_SP, "Gene.Symbol"]
@@ -249,13 +270,7 @@ table_gen <- data.frame(
   padj_48 = deg_SPlong2[intersect_SP, "adj.P.Val"]
 )
 
-table_gen_clean <- table_gen %>%
-  filter(!grepl("///", Gene)) %>%
-  group_by(Gene) %>%
-  slice_min(padj_48, n = 1) %>%
-  ungroup()
-print(table_gen_clean, n = Inf)
-write.csv(table_gen_clean, 
+write.csv(table_gen, 
           file = "/Users/putrianadwiagustin/Library/CloudStorage/OneDrive-UniversitasIslamIndonesia/Kuliah/Bismillah Tugas Akhir/output/GenSPlong.csv",
           row.names = TRUE)
 
@@ -586,6 +601,10 @@ res_IAVglobal$regulation[
 ] <- "Down"
 table(res_IAVglobal$regulation)
 
+write.csv(res_IAVglobal, 
+          file = "/Users/putrianadwiagustin/Library/CloudStorage/OneDrive-UniversitasIslamIndonesia/Kuliah/Bismillah Tugas Akhir/output/IAglobal1.csv",
+          row.names = TRUE)
+
 #Visualisasi
 keyvals_IAVglobal <- ifelse(
   res_IAVglobal$regulation == "Up", "red",
@@ -625,6 +644,6 @@ length(gen_IAV)
 gen_IAV <- unique(gen_IAV)
 length(gen_IAV)
 
-write.csv(sig_IAVglobal, 
-          file = "/Users/putrianadwiagustin/Library/CloudStorage/OneDrive-UniversitasIslamIndonesia/Kuliah/Bismillah Tugas Akhir/output/GenIAVglobal_label.csv",
+write.csv(gen_IAV, 
+          file = "/Users/putrianadwiagustin/Library/CloudStorage/OneDrive-UniversitasIslamIndonesia/Kuliah/Bismillah Tugas Akhir/output/PPI_IAV.csv",
           row.names = TRUE)
